@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Calculator</title>
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: 60px auto; }
+    input, select, button { font-size: 1.1rem; padding: 8px; margin: 4px; }
+    input { width: 90px; }
+    #output { font-size: 1.3rem; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Calculator</h1>
+
+  <input id="number1" placeholder="Number 1">
+  <select id="operation">
+    <option>+</option>
+    <option>-</option>
+    <option>*</option>
+    <option>/</option>
+  </select>
+  <input id="number2" placeholder="Number 2">
+  <button onclick="calculate()">=</button>
+
+  <p id="output"></p>
+
+  <script>
+    async function calculate() {
+      const payload = {
+        number1: document.getElementById("number1").value,
+        operation: document.getElementById("operation").value,
+        number2: document.getElementById("number2").value
+      };
+
+      const response = await fetch("/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      const output = document.getElementById("output");
+
+      if (data.result !== undefined) {
+        output.textContent = "Result: " + data.result;
+      } else {
+        output.textContent = "Error: " + data.error;
+      }
+    }
+  </script>
+</body>
+</html>
