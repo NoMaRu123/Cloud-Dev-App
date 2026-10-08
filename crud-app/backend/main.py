@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models, schemas
@@ -14,6 +15,14 @@ def get_db():
     finally:
         db.close()
 
+def commit_or_409(db: Session):
+    # unique=True on name makes the database reject duplicates with an IntegrityError
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="An item with this name already exists")
+
 @app.get("/")
 def read_root():
     return {"message": "Use the RESTful API"}
@@ -22,7 +31,7 @@ def read_root():
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
     db_item = models.Item(**item.model_dump())
     db.add(db_item)
-    db.commit()
+    commit_or_409(db)
     db.refresh(db_item)
     return db_item
 
@@ -44,7 +53,7 @@ def update_item(item_id: int, item: schemas.ItemCreate, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Item not found")
     for field, value in item.model_dump().items():
         setattr(db_item, field, value)
-    db.commit()
+    commit_or_409(db)
     db.refresh(db_item)
     return db_item
 
