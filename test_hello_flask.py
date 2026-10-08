@@ -1,6 +1,6 @@
 from hello_flask import app
 
-client = app.test_client()
+client = app.test_client() # make a safe browser
 
 def test_read_root():
     response = client.get("/")
