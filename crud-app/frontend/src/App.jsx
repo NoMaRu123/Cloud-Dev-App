@@ -1,122 +1,87 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react' // React tools: useState (remember data), useEffect (run code at load)
+
+// Where the API lives: set in .env.development locally, empty (same origin) when built for AWS
+const API_URL = import.meta.env.VITE_API_URL ?? '' // read the setting; if missing, use '' (same server)
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [items, setItems] = useState([])             // the list of items from the database, starts empty
+  const [name, setName] = useState('')               // what's typed in the Name box
+  const [description, setDescription] = useState('') // what's typed in the Description box
+  const [error, setError] = useState('')             // error message to show in red ('' = no error)
+
+  // Runs once, when the page first appears
+  useEffect(() => {
+    async function loadItems() {
+      const response = await fetch(`${API_URL}/items/`) // GET /items/ from the backend
+      const data = await response.json()                // turn the JSON reply into a JS list
+      setItems(data)                                    // save it, React redraws the list
+    }
+    loadItems()
+  }, []) // [] = only once, not on every redraw
+
+  // Runs when the form is submitted (Add button or Enter key)
+  async function createItem(event) {
+    event.preventDefault() // stop the browser reloading the page (default form behaviour)
+    setError('')           // clear any old error message
+
+    const response = await fetch(`${API_URL}/items/`, { // send the new item to the backend
+      method: 'POST',                                    // POST = create
+      headers: { 'Content-Type': 'application/json' },   // tell the server the body is JSON
+      body: JSON.stringify({ name, description }),       // the item, as JSON text
+    })
+    const data = await response.json() // the reply: the new item (with id) or an error
+
+    if (!response.ok) { // not a 2xx status = something went wrong
+      // 409/404 send detail as a string; 422 (validation) sends a list of problems
+      setError(typeof data.detail === 'string' ? data.detail : data.detail[0].msg) // show the message
+      return // stop here, don't add anything to the list
+    }
+
+    setItems([...items, data]) // new list = all old items + the new one, React redraws
+    setName('')                // empty the Name box
+    setDescription('')         // empty the Description box
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <main>
+      <h1>My CRUD App</h1>
 
-      <div className="ticks"></div>
+      {/* The add form: submitting it runs createItem */}
+      <form onSubmit={createItem}>
+        <input
+          placeholder="Name"                                // grey hint text when empty
+          value={name}                                      // the box shows what `name` holds
+          onChange={(event) => setName(event.target.value)} // every keystroke updates `name`
+        />
+        <input
+          placeholder="Description"
+          value={description}                                      // the box shows `description`
+          onChange={(event) => setDescription(event.target.value)} // every keystroke updates it
+        />
+        {/* type="submit" = clicking it submits the form */}
+        <button type="submit">Add</button>
+      </form>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      {/* Only shows when there is an error message */}
+      {error && <p className="error">{error}</p>}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      {/* If the list is empty show a message, otherwise show the list (if / else) */}
+      {items.length === 0 ? (
+        <p>No items yet.</p>
+      ) : (
+        <ul>
+          {/* For each item, make one <li> (like a for loop) */}
+          {items.map((item) => (
+            <li
+              key={item.id} // unique id so React can tell rows apart
+            >
+              <strong>{item.name}</strong>: {item.description}
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
   )
 }
 
-export default App
+export default App // let main.jsx import this component
