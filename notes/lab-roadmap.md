@@ -89,14 +89,22 @@ Everything below was done without understanding, so it all needs re-studying. Ti
 
 ---
 
-## Phase 4: React front-end, locally (no lab needed, ~3 hours)
+## Phase 4: React front-end, locally (no lab needed): 🟡 in progress
 
-- [ ] Install a Vite React app in `crud-app/frontend`.
-- [ ] `npm run dev` gives a **live preview with instant reload**, so the Live Server extension isn't needed (it's for plain HTML, not React).
-- [ ] Build the lecturer's `App.jsx` (create, list, edit, delete) and understand `useState`, `useEffect` and `fetch`/axios.
-- [ ] Connect it to the backend on :8000 (**CORS** vs the **Vite proxy**: Claude will explain both, and we pick one).
-- [ ] Improvements: show items in a **table**, display API errors (409 duplicate, 422 empty name).
-- [ ] `node_modules/` in `.gitignore` **before** the first commit.
+- [x] Vite React app created in `crud-app/frontend` (React + JavaScript + Oxlint). `node_modules` is ignored by Vite's own `.gitignore`.
+- [x] `npm run dev` / `npx vite`: live preview + HMR (state survives edits, F5 resets it).
+- [x] Two doors again: `npx vite --host` opened it to the Wi-Fi, so it worked on my phone at `192.168.1.93:5173`.
+- [x] **Chose CORS** (the lecturer's way, good for the CA): saw the browser block it (`200 OK` + `ERR_FAILED`), added `CORSMiddleware` for `http://localhost:5173`, then saw `Access-Control-Allow-Origin` appear.
+- [x] API address in `.env.development` (`VITE_API_URL`), empty in the AWS build, so the same code works both ways.
+- [x] READ: list loads on page load (`useEffect`, `items.map`). 2 GETs in dev = StrictMode, normal.
+- [x] CREATE: form with controlled inputs, POST, errors shown in red. `App.jsx` has a comment on every line.
+- [ ] **Next: run the 4 experiments from step 7d** (add Pen, add Pen again → 409, empty name → 422, spot the `OPTIONS` preflight in uvicorn).
+- [ ] UPDATE (edit button + PUT) and DELETE (delete button).
+- [ ] Show items in a **table** + some CSS.
+- [ ] Front-end validation layer (`required`, `maxLength`) = the 3rd of W09's three validation layers.
+
+> **PowerShell gotcha:** a bare `--` gets swallowed (`npm run dev -- --host` doesn't work). Use `npx vite --host`, or quote it: `'--'`.
+> **Starting work:** terminal #1 → `cd crud-app\frontend` → `npx vite`; terminal #2 (venv) → `cd crud-app\backend` → `uvicorn main:app --reload`.
 
 ## Phase 5: The same front-end served by FastAPI, locally (~1 hour)
 
