@@ -8,3 +8,4 @@ server.log
 .terraform/
 *.tfstate
 *.tfstate.*
+context.txt
