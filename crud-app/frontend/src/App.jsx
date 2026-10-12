@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react' // React tools: useState (remember data), useEffect (run code at load)
+import './App.css' // load this component's styles
 
 // Where the API lives: set in .env.development locally, empty (same origin) when built for AWS
 const API_URL = import.meta.env.VITE_API_URL ?? '' // read the setting; if missing, use '' (same server)
@@ -42,6 +43,23 @@ function App() {
     setDescription('')         // empty the Description box
   }
 
+  // Runs when a Delete button is clicked
+  async function deleteItem(id) {
+    setError('') // clear any old error message
+
+    const response = await fetch(`${API_URL}/items/${id}`, { // the URL says WHICH item, e.g. /items/3
+      method: 'DELETE',                                      // DELETE = remove it
+    })
+
+    if (!response.ok) {                  // e.g. 404 if it was already deleted
+      const data = await response.json() // read the error reply
+      setError(data.detail)              // show it in red ("Item not found")
+      return                             // stop, leave the list as it is
+    }
+
+    setItems(items.filter((item) => item.id !== id)) // new list = every item EXCEPT the deleted one
+  }
+
   return (
     <main>
       <h1>My CRUD App</h1>
@@ -76,6 +94,8 @@ function App() {
               key={item.id} // unique id so React can tell rows apart
             >
               <strong>{item.name}</strong>: {item.description}
+              {/* () => waits for the click, then deletes THIS row's item */}
+              <button onClick={() => deleteItem(item.id)}>Delete</button>
             </li>
           ))}
         </ul>
