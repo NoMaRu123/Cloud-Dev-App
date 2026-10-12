@@ -9,6 +9,7 @@ function App() {
   const [name, setName] = useState('')               // what's typed in the Name box
   const [description, setDescription] = useState('') // what's typed in the Description box
   const [error, setError] = useState('')             // error message to show in red ('' = no error)
+  const [editingId, setEditingId] = useState(null)   // id of the item being edited (null = adding a new one)
 
   // Runs once, when the page first appears
   useEffect(() => {
@@ -58,47 +59,112 @@ function App() {
     }
 
     setItems(items.filter((item) => item.id !== id)) // new list = every item EXCEPT the deleted one
+    if (id === editingId) cancelEdit()               // if that item was open in the form, close the form too
+  }
+
+  // Runs when an Edit button is clicked: copy that item into the form
+  function startEdit(item) {
+    setEditingId(item.id)                  // remember WHICH item we are editing
+    setName(item.name)                     // put its name in the Name box
+    setDescription(item.description ?? '') // put its description in the box ('' if it has none)
+    setError('')                           // clear any old error message
+  }
+
+  // Runs when Cancel is clicked, and after a successful save: back to "add" mode
+  function cancelEdit() {
+    setEditingId(null) // null = not editing any more
+    setName('')        // empty the Name box
+    setDescription('') // empty the Description box
+    setError('')       // clear any old error message
+  }
+
+  // Runs when the form is submitted WHILE editing
+  async function updateItem(event) {
+    event.preventDefault() // stop the browser reloading the page
+    setError('')           // clear any old error message
+
+    const response = await fetch(`${API_URL}/items/${editingId}`, { // the URL says WHICH item to change
+      method: 'PUT',                                                // PUT = update
+      headers: { 'Content-Type': 'application/json' },              // tell the server the body is JSON
+      body: JSON.stringify({ name, description }),                  // the new values, as JSON text
+    })
+    const data = await response.json() // the reply: the updated item, or an error
+
+    if (!response.ok) { // e.g. 409 duplicate name, 422 empty name, 404 already deleted
+      setError(typeof data.detail === 'string' ? data.detail : data.detail[0].msg) // show the message
+      return // stop here, stay in edit mode so the user can fix it
+    }
+
+    // Build a new list: for the item we edited use the updated version, keep every other item as it is
+    setItems(items.map((item) => (item.id === editingId ? data : item)))
+    cancelEdit() // leave edit mode and empty the boxes
   }
 
   return (
     <main>
       <h1>My CRUD App</h1>
 
-      {/* The add form: submitting it runs createItem */}
-      <form onSubmit={createItem}>
+      {/* The heading says which mode the form is in */}
+      <h2>{editingId === null ? 'Add an item' : 'Edit item'}</h2>
+
+      {/* One form, two jobs: not editing -> createItem, editing -> updateItem */}
+      <form onSubmit={editingId === null ? createItem : updateItem}>
         <input
           placeholder="Name"                                // grey hint text when empty
           value={name}                                      // the box shows what `name` holds
           onChange={(event) => setName(event.target.value)} // every keystroke updates `name`
+          required                                          // browser check: can't submit while empty
+          maxLength={100}                                   // browser check: same limit as schemas.py
         />
         <input
           placeholder="Description"
           value={description}                                      // the box shows `description`
           onChange={(event) => setDescription(event.target.value)} // every keystroke updates it
+          maxLength={500}                                          // browser check: same limit as schemas.py
         />
-        {/* type="submit" = clicking it submits the form */}
-        <button type="submit">Add</button>
+        {/* The button's label: 'Add' when not editing, 'Save' when editing */}
+        <button type="submit">{editingId === null ? 'Add' : 'Save'}</button>
+        {/* Cancel button: only drawn while editing. type="button" so it does NOT submit the form */}
+        {editingId !== null && (
+          <button type="button" onClick={cancelEdit}>Cancel</button>
+        )}
       </form>
 
       {/* Only shows when there is an error message */}
       {error && <p className="error">{error}</p>}
 
-      {/* If the list is empty show a message, otherwise show the list (if / else) */}
+      {/* If the list is empty show a message, otherwise show the table (if / else) */}
       {items.length === 0 ? (
         <p>No items yet.</p>
       ) : (
-        <ul>
-          {/* For each item, make one <li> (like a for loop) */}
-          {items.map((item) => (
-            <li
-              key={item.id} // unique id so React can tell rows apart
-            >
-              <strong>{item.name}</strong>: {item.description}
-              {/* () => waits for the click, then deletes THIS row's item */}
-              <button onClick={() => deleteItem(item.id)}>Delete</button>
-            </li>
-          ))}
-        </ul>
+        <table>
+          {/* The header row: column titles */}
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th className="actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* For each item, make one table row (like a for loop) */}
+            {items.map((item) => (
+              <tr
+                key={item.id}                                      // unique id so React can tell rows apart
+                className={item.id === editingId ? 'editing' : ''} // highlight the row being edited
+              >
+                <td>{item.name}</td>
+                <td>{item.description}</td>
+                <td className="actions">
+                  {/* Edit: copy THIS row's item into the form */}
+                  <button onClick={() => startEdit(item)}>Edit</button>
+                  {/* Delete: () => waits for the click, then deletes THIS row's item */}
+                  <button className="danger" onClick={() => deleteItem(item.id)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </main>
   )

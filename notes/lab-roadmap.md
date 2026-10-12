@@ -98,10 +98,12 @@ Everything below was done without understanding, so it all needs re-studying. Ti
 - [x] API address in `.env.development` (`VITE_API_URL`), empty in the AWS build, so the same code works both ways.
 - [x] READ: list loads on page load (`useEffect`, `items.map`). 2 GETs in dev = StrictMode, normal.
 - [x] CREATE: form with controlled inputs, POST, errors shown in red. `App.jsx` has a comment on every line.
-- [ ] **Next: run the 4 experiments from step 7d** (add Pen, add Pen again → 409, empty name → 422, spot the `OPTIONS` preflight in uvicorn).
-- [ ] UPDATE (edit button + PUT) and DELETE (delete button).
-- [ ] Show items in a **table** + some CSS.
-- [ ] Front-end validation layer (`required`, `maxLength`) = the 3rd of W09's three validation layers.
+- [x] The 4 experiments from step 7d (duplicate → 409 from `commit_or_409`, empty name → 422 from `schemas.py`, `OPTIONS` preflight before POST/PUT/DELETE).
+- [x] DELETE (button per row, `items.filter`) and UPDATE (`editingId` mode switch, one form for add + edit, `items.map`). I typed these; Claude fixed 4 typos (`deletItem`, quotes instead of backticks, `item,id`).
+- [x] Table + CSS, and the front-end validation layer (`required`, `maxLength`). **Written by Claude** on 2026-10-12, because front-end isn't my focus. Every line is commented.
+- [ ] Final click-test of the finished page, then commit.
+
+**All three W09 validation layers now exist:** browser (`required`/`maxLength` in `App.jsx`) → API (`Field(...)` in `schemas.py`, 422) → database (`unique=True` in `models.py`, 409).
 
 > **PowerShell gotcha:** a bare `--` gets swallowed (`npm run dev -- --host` doesn't work). Use `npx vite --host`, or quote it: `'--'`.
 > **Starting work:** terminal #1 → `cd crud-app\frontend` → `npx vite`; terminal #2 (venv) → `cd crud-app\backend` → `uvicorn main:app --reload`.
@@ -124,6 +126,16 @@ Everything below was done without understanding, so it all needs re-studying. Ti
 - [ ] Update `user_data.tpl` so the VM also builds the front-end (install Node.js, `npm install`, `npm run build`).
 - [ ] `terraform apply` → `http://<ip>` shows the **UI**, and `/docs` still shows the API.
 - [ ] `terraform destroy` → End Lab.
+
+## Phase 6b (optional): Auto-update the VM when I push (my friend's idea)
+
+Right now, updating the app on AWS means `terraform destroy` + `apply` (a fresh VM each time).
+The idea: the **VM checks GitHub itself** and pulls new commits, so a `git push` is all it takes.
+
+- [ ] A small **shell script** on the VM (`.sh`, the Linux version of a Windows `.bat` file): `git pull`, reinstall packages if needed, restart uvicorn.
+- [ ] **cron** (Linux's Task Scheduler) runs it every few minutes. Both get set up by `user_data.tpl`, so it's still automatic.
+- [ ] Needs **no AWS keys**: the VM only reads from the public GitHub repo. (Automating Terraform itself, for example from GitHub Actions, isn't practical in the Learner Lab because the keys expire every session.)
+- [ ] This is called **continuous deployment (CD)**. Good material for the CA.
 
 ## Phase 7: Bulk upload (W10) (~1 hour, part of it in a lab session)
 
