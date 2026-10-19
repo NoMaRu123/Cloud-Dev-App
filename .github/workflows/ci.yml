@@ -1,0 +1,32 @@
+name: CI                          # the name shown in GitHub's Actions tab
+
+on:                               # WHEN to run
+  push:
+    branches: [main]              # every push to main
+  pull_request:
+    branches: [main]              # and every pull request into main
+
+jobs:
+  test:                           # one job, called "test"
+    runs-on: ubuntu-latest        # a fresh Linux machine from GitHub
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7          # a ready-made action: copies your repo onto the runner
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7      # installs Python, the same version as your laptop
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |                             # run: = type these commands in the runner's terminal
+          pip install -r requirements.txt
+          pip install flake8
+
+      - name: Lint with flake8             # the lecturer's commands from the W13 slide
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --statistics
+
+      - name: Run the tests
+        run: pytest -v
