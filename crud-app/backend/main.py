@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models, schemas
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -42,9 +44,9 @@ def get_item_or_404(item_id: int, db: Session):
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
-@app.get("/")
-def read_root():
-    return {"message": "Use the RESTful API"}
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.post("/items/", response_model=schemas.Item)
 def create_item(item: schemas.ItemCreate, db: Session = Depends(get_db)):
@@ -82,3 +84,7 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"message": "Item deleted successfully"}
+
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist" 
+if FRONTEND_DIST.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")

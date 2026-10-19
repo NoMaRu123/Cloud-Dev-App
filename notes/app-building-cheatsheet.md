@@ -13,6 +13,9 @@ Each section is short on purpose. Explanations are linked where a longer version
 7. [Methods vs properties: when to use `()`](#7-methods-vs-properties-when-to-use-)
 8. [Testing an API](#8-testing-an-api)
 9. [Project setup commands](#9-project-setup-commands)
+10. [Relative paths vs `__file__`](#10-relative-paths-vs-__file__)
+11. [Route order, static files and health checks](#11-route-order-static-files-and-health-checks)
+12. [CORS on one page](#12-cors-on-one-page)
 
 ---
 
@@ -302,4 +305,124 @@ git commit -m "what and why"
 git push
 ```
 - `.gitignore` should contain at least `venv/`, `__pycache__/`, `.pytest_cache/`.
-- Never commit passwords, tokens or `.env` files.
+- Never commit passwords or tokens. An `.env` file that holds **secrets** stays out of Git. A settings-only one, like `.env.development` with just a localhost URL, is fine to commit.
+
+### Front-end (Vite + React)
+```
+npm create vite@latest frontend     # once: pick React, JavaScript
+npm install                         # like pip install -r requirements.txt → fills node_modules/
+npx vite                            # dev server, http://localhost:5173, reloads on save
+npx vite --host                     # same, but open to other devices on the Wi-Fi
+npm run build                       # production files → dist/
+```
+- `package.json` = requirements.txt, `node_modules/` = venv (never committed), `package-lock.json` = exact versions (**do** commit).
+- **PowerShell swallows a bare `--`**, so `npm run dev -- --host` loses the flag. Use `npx vite --host`.
+
+---
+
+## 10. Relative paths vs `__file__`
+
+**A relative path is measured from the folder the program was STARTED in** (the "current folder"), **not** from the file the code is written in.
+
+```python
+"./test.db"            # current folder → depends on where you ran uvicorn / pytest
+"../frontend/dist"     # one up from the current folder → same problem
+```
+Proof from this project: `database.py` uses `"sqlite:///./test.db"`, and there were **two** `test.db` files, one in the project root (pytest was run from there) and one in `crud-app/backend` (uvicorn was run from there).
+
+**Fix: build the path from the file's own location**, which never changes inside the repo:
+```python
+from pathlib import Path
+
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
+# __file__ → .../crud-app/backend/main.py
+# .parent  → .../crud-app/backend
+# .parent  → .../crud-app
+# / "frontend" / "dist" → .../crud-app/frontend/dist
+```
+- `__file__` = the full address of the current `.py` file. Python fills it in at run time, so it's right on the laptop **and** on the VM.
+- Works however the app is started: a terminal in any folder, pytest from the root, a boot script (current folder `/`), a service, a scheduled job.
+- The other fix is to **`cd` first** (what `user_data.tpl` does). It works, but every way of starting the app must remember to do it.
+- Same effect on Linux: `python3 -m venv venv` made `/root/venv` by hand, and `/venv` from the boot script.
+
+---
+
+## 11. Route order, static files and health checks
+
+**FastAPI checks routes in the order they were registered. The first match wins.**
+
+```
+/openapi.json, /docs        ← built in
+/health
+/items/  ,  /items/{item_id}
+/   ← app.mount(...)        ← matches EVERYTHING, so it must be LAST
+```
+
+### Serving a built front-end from FastAPI (one server for page + API)
+```python
+from fastapi.staticfiles import StaticFiles
+
+# at the very BOTTOM of main.py, after all routes
+if FRONTEND_DIST.exists():                       # don't crash when it hasn't been built
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+```
+`StaticFiles` turns the **URL into a file path** inside the folder and sends that file:
+
+| URL | Handled by | Returns |
+|---|---|---|
+| `/items/` | API route | JSON |
+| `/assets/index-abc.js` | the mount | the file `dist/assets/index-abc.js` |
+| `/` | the mount | `dist/index.html` (because `html=True`) |
+| `/nope` | the mount | 404, no such file |
+
+- A page load is several requests: `/` → the HTML → it asks for its JS and CSS → the JS calls `/items/`.
+- If the mount were **first**, `/items/` would be looked up as a file → 404, and the API would be unreachable.
+- `/` can't also be an API route: whichever is registered first wins. That's why the old root message moved to `/health`.
+
+### Health check
+```python
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+```
+A tiny URL that only says "I'm running". Load balancers, monitoring and deploy scripts call it to decide whether a server is alive.
+
+---
+
+## 12. CORS on one page
+
+**Origin** = protocol + address + **port**. `http://localhost:5173` and `http://localhost:8000` are different origins.
+
+**Rule (enforced by the BROWSER, not the server):** a page may only read replies from its own origin, unless the other server gives permission.
+
+```
+Browser → server:   Origin: http://localhost:5173
+Server  → browser:  Access-Control-Allow-Origin: http://localhost:5173     ← the permission
+```
+No matching header → the browser throws the reply away. That's why the console shows **`200 (OK)` and `ERR_FAILED` together**: the server answered, the browser refused to hand it over. Swagger, curl and Python never hit CORS, because only browsers enforce it.
+
+**Backend fix:**
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],   # exactly who may read (port included)
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+**Preflight (`OPTIONS`):** before a request that **changes data** cross-origin (POST with JSON, PUT, DELETE), the browser first asks permission with an `OPTIONS` request. A plain GET is sent straight away and only the *reading* is blocked.
+
+| | GET | POST / PUT / DELETE |
+|---|---|---|
+| Preflight? | no | yes, `OPTIONS` first |
+| If not allowed | the request runs, the reply is hidden | the request is never sent |
+
+**When there's no CORS at all:** when the page and the API come from the **same origin**, for example FastAPI serving the built front-end (section 11). No `Origin` check, no preflight.
+
+**Front-end side:** the API address comes from a setting, so the same code works in both places:
+```js
+const API_URL = import.meta.env.VITE_API_URL ?? ''   // .env.development: http://localhost:8000 ; built: '' (same origin)
+```

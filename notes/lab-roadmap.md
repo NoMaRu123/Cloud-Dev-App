@@ -1,12 +1,57 @@
 # Lab roadmap: rebuild with understanding, then finish
 
 Cloud App Dev (BSHC4SDFD). Built from slides W03–W12.
-**Mode: Guided.** I type everything. Claude explains each step first, I predict the result, then we check.
+**Mode: Guided for backend and cloud.** I type, Claude explains each step first, I predict the result, then we check.
+**Front-end: brief.** It isn't my focus, so Claude may write it, with a comment on every line.
 Tick items off as I go: `- [x]`.
 
 ---
 
-## Where I am (2026-10-09)
+## ➡️ The CA project has moved (2026-10-18)
+
+My CA project, **budget-tracker**, now lives in the sibling folder `..\budget-tracker` (GitHub: NoMaRu123/budget-tracker), created from this lab's code. Its plan is `budget-tracker\notes\PLAN.md`. Open that folder in VS Code for all new work. This repo stays as the lab archive.
+
+**The lab is not fully finished.** Plan agreed on 2026-10-18: one ~2-hour local session in the lab for the items where practising twice pays off, and everything else done once in the CA.
+
+| Lab item still open | Decision |
+|---|---|
+| Phase 5: test the build at `localhost:8000` | **do in the lab** (~10 min) |
+| W05 Observer pattern | ✅ **done 2026-10-19** (`other/observer.py`, the lecturer's code, traced by hand). Next: budget alerts in CA Phase B. Recap of the OOP behind it: `notes/python-oop-recap.md` |
+| W10 bulk upload, local (Mockaroo + upload script) | ✅ **done 2026-10-19**: `other/upload.py` + `other/MOCK_DATA.csv`. 1000 rows → **951 inserted**, 49 rejected with 409 (exactly the 49 repeated names in the file). The database then held 953 = 951 + 2 earlier items. Posting to `/items` (no slash) gives 405 because of the Phase 5 catch-all mount, so the URL is `/items/`. Next: CSV import in CA Phase B |
+| W05 cloud patterns | **Claude writes a one-page note** (`notes/cloud-patterns.md`), then CA Phase H for the references |
+| **W13 demo flow (updated 2026-10-19)** | **do in the lab AND the CA.** The lecturer's demo-steps slide (`course-materials/CA-demo-steps-slide.jpg`) must be done in full, with no step skipped. See "Demo flow" below |
+| Phase 6: deploy UI + API together | **replaced** by the demo flow: the front-end runs on my laptop and calls the backend's IP on AWS |
+| systemd restart after reboot | CA Phase E only (the demo builds a fresh stack each time, so it isn't needed for the demo) |
+
+### Demo flow (the lecturer's 8 demo steps), to do in the lab first
+
+| # | Step | Status |
+|---|---|---|
+| 1 | Start the AWS Academy lab | done before (by hand) |
+| 2 | Paste the AWS keys into **GitHub Secrets** | ⬜ never done |
+| 3 | Run a **GitHub workflow** that launches the Terraform stack | ⬜ (Terraform was always run from my laptop) |
+| 4 | Show the successful workflow: **testing and deployment** | ⬜ no workflow exists yet |
+| 5 | Paste the backend's IP into the front-end (`VITE_API_URL`) | ⬜ the front-end has only ever called a local backend |
+| 6 | Start the front-end (`npx vite`) | done, locally |
+| 7 | Code walkthrough: front-end, library, backend, testing | partly (no library in the lab, that's CA only) |
+| 8 | Stop the stack with a **GitHub workflow** | ⬜ (`terraform destroy` was always run from my laptop) |
+
+Build order: a CI workflow that runs the tests (no AWS needed), then deploy and destroy workflows adapted from W13's `workflows.zip` (Terraform in `infra/`, AWS keys from GitHub Secrets, a decision on where the state file lives), then one full rehearsal of steps 1 to 8 in a lab session.
+| Phase 6b pull-script auto-update | **dropped** (W13's GitHub Actions replaces it) |
+| W10 timing comparison on AWS | **dropped** (optional in the slides) |
+
+## ▶ Resume here (updated 2026-10-12)
+
+**Starting a new Claude session?** Say: *"Read notes/lab-roadmap.md and continue from Resume here."*
+
+- **Now:** Phase 5, step 3. `main.py` already serves the built front-end (the `/health` route, and the `StaticFiles` mount at the bottom), and `npm run build` has been run. **Not committed yet.**
+- **Next action:** with uvicorn running and Vite **off**, open `http://localhost:8000`, add an item, and look at terminal #2. Is there an `OPTIONS` line before the `POST`? (Expected: no. The page and the API are now the same origin, so there's no CORS check.) Then commit and push.
+- **After that:** Phase 6 (deploy the full app), 6b (auto-update), 7 (bulk upload), 8 (wrap-up).
+- **AWS:** nothing running. Both Terraform folders hold 0 resources.
+- **Course materials:** all slides and the CA brief are in `course-materials/` (ignored by Git: the repo is public). Still missing: W08, W04, W07, W01–W02.
+- ⚠️ **The CA brief arrived 2026-10-18** (midpoint check 6 Nov, due 16 Dec). It changes Phases 6–8: a **standalone** front-end with Bootstrap and components, a **library beyond CRUD**, more test types, and **CI/CD with GitHub Actions** (W13). Re-plan before Phase 6.
+
+## Where I am (2026-10-12)
 
 | Week | Topic | Status |
 |---|---|---|
@@ -15,13 +60,13 @@ Tick items off as I go: `- [x]`.
 | W05 | Observer + cloud patterns | ⬜ small, any time |
 | W06 | Unit + integration tests | ✅ 17 calculator tests |
 | — | FastAPI port | ✅ |
-| W09 | CRUD backend + validation + logging + 11 tests | ✅ *written by Claude in speed mode, so re-study it* |
-| W11 | Terraform + manual deploy to EC2 | ✅ *worked once, but I didn't understand it, so rebuild* |
-| W12 | Automatic deploy (user_data) | ⬜ files ready in `infra/` |
-| W09 | React front-end (Vite) | ⬜ |
-| W10 | Bulk upload (Mockaroo) | ⬜ |
-
-⚠️ **Still in AWS from 2026-10-08:** 1 VM + 1 security group created from `ec2-backend/` (IP was 54.160.134.189). The VM is stopped but **not deleted**. Phase 0 removes it.
+| W09 | CRUD backend + validation + logging + 11 tests | ✅ *written by Claude in speed mode, still to re-study (see the speed-run log)* |
+| W11 | Terraform + manual deploy to EC2 | ✅ rebuilt by hand and understood, 2026-10-10 |
+| W12 | Automatic deploy (user_data) | ✅ 2026-10-10 |
+| W09 | React front-end (Vite), full CRUD + CORS | ✅ 2026-10-12 |
+| — | Front-end served by FastAPI (one server) | 🟡 Phase 5, nearly done |
+| — | Full app (UI + API) on AWS | ⬜ Phase 6 |
+| W10 | Bulk upload (Mockaroo) | ⬜ Phase 7 |
 
 ---
 
@@ -89,7 +134,7 @@ Everything below was done without understanding, so it all needs re-studying. Ti
 
 ---
 
-## Phase 4: React front-end, locally (no lab needed): 🟡 in progress
+## Phase 4: React front-end, locally (no lab needed): ✅ done 2026-10-12
 
 - [x] Vite React app created in `crud-app/frontend` (React + JavaScript + Oxlint). `node_modules` is ignored by Vite's own `.gitignore`.
 - [x] `npm run dev` / `npx vite`: live preview + HMR (state survives edits, F5 resets it).
@@ -101,18 +146,20 @@ Everything below was done without understanding, so it all needs re-studying. Ti
 - [x] The 4 experiments from step 7d (duplicate → 409 from `commit_or_409`, empty name → 422 from `schemas.py`, `OPTIONS` preflight before POST/PUT/DELETE).
 - [x] DELETE (button per row, `items.filter`) and UPDATE (`editingId` mode switch, one form for add + edit, `items.map`). I typed these; Claude fixed 4 typos (`deletItem`, quotes instead of backticks, `item,id`).
 - [x] Table + CSS, and the front-end validation layer (`required`, `maxLength`). **Written by Claude** on 2026-10-12, because front-end isn't my focus. Every line is commented.
-- [ ] Final click-test of the finished page, then commit.
+- [x] Final click-test of the finished page: everything worked. Committed and pushed (`0eeae36`).
 
 **All three W09 validation layers now exist:** browser (`required`/`maxLength` in `App.jsx`) → API (`Field(...)` in `schemas.py`, 422) → database (`unique=True` in `models.py`, 409).
 
 > **PowerShell gotcha:** a bare `--` gets swallowed (`npm run dev -- --host` doesn't work). Use `npx vite --host`, or quote it: `'--'`.
 > **Starting work:** terminal #1 → `cd crud-app\frontend` → `npx vite`; terminal #2 (venv) → `cd crud-app\backend` → `uvicorn main:app --reload`.
 
-## Phase 5: The same front-end served by FastAPI, locally (~1 hour)
+## Phase 5: The same front-end served by FastAPI, locally: 🟡 nearly done
 
-- [ ] `npm run build` → static files in `dist/`.
-- [ ] FastAPI serves `dist/` too, so **one server on one port** gives both the UI and the API.
-- [ ] Test at `http://localhost:8000`. This is exactly what the cloud will run.
+- [x] `npm run build` → plain files in `crud-app/frontend/dist/` (`index.html` + one JS + one CSS). `dist` is ignored by Git.
+- [x] `main.py` (I typed it): `/` became **`/health`**, and `app.mount("/", StaticFiles(...))` is the **last** thing registered. The folder path is built from `__file__`, not a relative path.
+- [x] Understood why: relative paths are measured from the **folder the program was started in**, not from the file (proof: two `test.db` files in the project). Routes are checked **top to bottom, first match wins**, so the catch-all mount must be last. See the cheatsheet, sections 10 and 11.
+- [ ] Test at `http://localhost:8000` with Vite off. This is exactly what the cloud will run. Check for `OPTIONS` lines.
+- [ ] Commit and push.
 
 **Result: both ways.**
 | | Local development | Cloud |
@@ -123,7 +170,8 @@ Everything below was done without understanding, so it all needs re-studying. Ti
 
 ## Phase 6: Deploy the full app (one lab session, ~1 hour)
 
-- [ ] Update `user_data.tpl` so the VM also builds the front-end (install Node.js, `npm install`, `npm run build`).
+- [ ] `dist/` isn't in Git, so the VM has nothing to serve after `git clone`. Decide: the VM **builds it** (install Node.js, `npm ci`, `npm run build` in `user_data.tpl`), or we **commit `dist/`**.
+- [ ] Update `user_data.tpl` for that choice.
 - [ ] `terraform apply` → `http://<ip>` shows the **UI**, and `/docs` still shows the API.
 - [ ] `terraform destroy` → End Lab.
 
@@ -134,7 +182,7 @@ The idea: the **VM checks GitHub itself** and pulls new commits, so a `git push`
 
 - [ ] A small **shell script** on the VM (`.sh`, the Linux version of a Windows `.bat` file): `git pull`, reinstall packages if needed, restart uvicorn.
 - [ ] **cron** (Linux's Task Scheduler) runs it every few minutes. Both get set up by `user_data.tpl`, so it's still automatic.
-- [ ] Needs **no AWS keys**: the VM only reads from the public GitHub repo. (Automating Terraform itself, for example from GitHub Actions, isn't practical in the Learner Lab because the keys expire every session.)
+- [ ] Needs **no AWS keys**: the VM only reads from the public GitHub repo. (Correction, 2026-10-18: automating Terraform from GitHub Actions **is** possible. W13 does it by storing the Learner Lab keys as GitHub secrets, re-pasted each session.)
 - [ ] This is called **continuous deployment (CD)**. Good material for the CA.
 
 ## Phase 7: Bulk upload (W10) (~1 hour, part of it in a lab session)

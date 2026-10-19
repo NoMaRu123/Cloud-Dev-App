@@ -9,3 +9,6 @@ server.log
 *.tfstate
 *.tfstate.*
 context.txt
+
+# Course materials (lecturer slides, CA brief): private, never on GitHub
+course-materials/
