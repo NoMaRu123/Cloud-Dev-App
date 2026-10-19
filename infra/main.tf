@@ -1,4 +1,12 @@
 terraform {
+  # Keep the state file (Terraform's receipt) in a PRIVATE S3 bucket, not in the repo
+  backend "s3" {
+    bucket       = "cloud-dev-app-tfstate-XXXXXX"  # replace XXXXXX with 6 random digits
+    key          = "lab/terraform.tfstate"         # the file's path inside the bucket
+    region       = "us-east-1"
+    use_lockfile = true                            # stops two runs editing the state at once
+  }
+  
   required_providers {
     aws = {
       source = "hashicorp/aws"

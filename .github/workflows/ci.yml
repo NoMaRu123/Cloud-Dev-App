@@ -5,6 +5,7 @@ on:                               # WHEN to run
     branches: [main]              # every push to main
   pull_request:
     branches: [main]              # and every pull request into main
+  workflow_call:
 
 jobs:
   test:                           # one job, called "test"
