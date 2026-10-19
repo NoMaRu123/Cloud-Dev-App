@@ -16,6 +16,7 @@ Each section is short on purpose. Explanations are linked where a longer version
 10. [Relative paths vs `__file__`](#10-relative-paths-vs-__file__)
 11. [Route order, static files and health checks](#11-route-order-static-files-and-health-checks)
 12. [CORS on one page](#12-cors-on-one-page)
+13. [CI/CD with GitHub Actions, secrets and S3 state](#13-cicd-with-github-actions-secrets-and-s3-state)
 
 ---
 
@@ -426,3 +427,114 @@ app.add_middleware(
 ```js
 const API_URL = import.meta.env.VITE_API_URL ?? ''   // .env.development: http://localhost:8000 ; built: '' (same origin)
 ```
+
+---
+
+## 13. CI/CD with GitHub Actions, secrets and S3 state
+
+### The three workflows
+
+| File | Job | Runs when | Uses AWS? |
+|---|---|---|---|
+| `ci.yml` | lint + run the tests | every push, and whenever deploy calls it | no |
+| `deploy.yml` | tests, then `terraform apply` | "Run workflow" button | yes |
+| `destroy.yml` | `terraform destroy` | "Run workflow" button + typing `destroy` | yes |
+
+```
+git push ──► ci.yml ──► ✅ or ❌ next to the commit
+
+Run ──► deploy.yml ─┬─ 1. ci.yml (tests must pass)
+                    └─ 2. terraform apply ──► AWS: firewall + VM ──► VM runs user_data.tpl
+                                 └─ receipt saved in the private S3 bucket
+
+Run + "destroy" ──► destroy.yml ── reads the receipt from S3 ──► deletes VM + firewall
+```
+
+Each layer automated one more thing: W11 Terraform created the server, W12 `user_data` set up the app, and W13 GitHub Actions runs Terraform and the tests.
+
+### Workflow file basics
+
+GitHub runs every `.yml` file in `.github/workflows/`. YAML is a settings format: indentation shows the structure (spaces, never tabs), and `#` starts a comment.
+
+```yaml
+name: App deployment                # name in the Actions tab
+on:
+  push:                             # trigger: every push
+    branches: [main]
+  workflow_dispatch:                # trigger: a "Run workflow" button
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm'
+        required: true
+  workflow_call:                    # trigger: another workflow can run this one
+
+concurrency:
+  group: terraform                  # two runs in this group never overlap
+  cancel-in-progress: false
+
+permissions:
+  contents: read                    # least privilege: read the code, nothing else
+
+jobs:
+  tests:
+    uses: ./.github/workflows/ci.yml        # a reusable workflow, run as a job
+  deploy:
+    needs: tests                            # only after tests passed
+    if: inputs.confirm == 'destroy'         # (destroy.yml) skip unless confirmed
+    runs-on: ubuntu-latest                  # a fresh Linux machine, thrown away afterwards
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    defaults:
+      run:
+        working-directory: infra            # every run: step starts in infra/
+    steps:
+      - uses: actions/checkout@v7           # a ready-made action
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false          # plain output, so $(terraform output -raw ...) works
+      - run: terraform init -input=false    # your own command
+      - run: echo "Backend: http://$IP/docs" >> "$GITHUB_STEP_SUMMARY"   # shows on the run's summary page
+```
+
+- The runner only has what's in Git. Nothing from your laptop, so `requirements.txt` is how it knows what to install.
+- `uses:` runs a ready-made action. `run:` types commands into the runner's terminal.
+- A failed step stops the job, so later steps and jobs that `needs:` it never start.
+
+### Secrets
+
+- 🌐 GitHub → repo → **Settings → Secrets and variables → Actions → New repository secret**. Use the pencil icon to replace a value.
+- Names must match the workflow exactly: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`. Paste only the value after the `=` from the AWS Details block.
+- Secrets belong to one repo. Each repo needs its own.
+- **Learner Lab keys change every session**, so update all three at the start of every session. If you forget, `terraform init` fails with an expired or invalid token error: update the secrets and press Re-run.
+- Secrets are encrypted, shown as `***` in logs, never given to workflows started from other people's forks, and can't be read back after saving.
+
+### Remote state in a private S3 bucket
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket       = "cloud-dev-app-tfstate-123456"   # globally unique name
+    key          = "lab/terraform.tfstate"          # path inside the bucket
+    region       = "us-east-1"
+    use_lockfile = true                             # an "in use" sign while a run works on it
+  }
+  # required_providers { ... } as before
+}
+```
+- Create the bucket once, in the AWS console: S3 → Create bucket → the exact name → `us-east-1` → keep **Block all public access ON** → turn **Bucket versioning ON**, so old copies of the receipt can be restored.
+- Bucket names: 3 to 63 characters, **lowercase** letters, digits and hyphens only, unique across all of AWS. The name isn't secret.
+- Why not commit the state like W13 does? The repo is public, and the state holds the AWS account ID and resource IDs.
+- Why the repo stays public: the VM clones it with no login, and the W11 slide asks for a public repo.
+- Run Terraform for that folder only through the workflows, so there's one copy of the truth.
+
+### Checks before pushing
+
+```
+git add .
+git diff --cached --name-only | Select-String "tfstate|credentials|\.env"
+```
+Look at anything it prints before pushing. (`.env.development` is fine: it only holds a localhost URL.)
+
+Checkers worth running:
+- **actionlint** (from github.com/rhysd/actionlint) checks workflow files. It flagged `ubuntu-26.04` as unknown, so the workflows use `ubuntu-latest`.
+- `terraform init -backend=false`, then `terraform validate`, checks `.tf` files without touching AWS.
