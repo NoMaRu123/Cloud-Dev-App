@@ -7,6 +7,8 @@ Tick items off as I go: `- [x]`.
 
 ---
 
+## ✅ Lab finished (2026-10-19): the full demo flow ran end to end
+
 ## ➡️ The CA project has moved (2026-10-18)
 
 My CA project, **budget-tracker**, now lives in the sibling folder `..\budget-tracker` (GitHub: NoMaRu123/budget-tracker), created from this lab's code. Its plan is `budget-tracker\notes\PLAN.md`. Open that folder in VS Code for all new work. This repo stays as the lab archive.
@@ -28,13 +30,13 @@ My CA project, **budget-tracker**, now lives in the sibling folder `..\budget-tr
 | # | Step | Status |
 |---|---|---|
 | 1 | Start the AWS Academy lab | done before (by hand) |
-| 2 | Paste the AWS keys into **GitHub Secrets** | ⬜ never done |
-| 3 | Run a **GitHub workflow** that launches the Terraform stack | ⬜ (Terraform was always run from my laptop) |
-| 4 | Show the successful workflow: **testing and deployment** | 🟡 testing ✅ (`.github/workflows/ci.yml`, green on 2026-10-19). Deployment: `deploy.yml` next |
-| 5 | Paste the backend's IP into the front-end (`VITE_API_URL`) | ⬜ the front-end has only ever called a local backend |
-| 6 | Start the front-end (`npx vite`) | done, locally |
-| 7 | Code walkthrough: front-end, library, backend, testing | partly (no library in the lab, that's CA only) |
-| 8 | Stop the stack with a **GitHub workflow** | ⬜ (`terraform destroy` was always run from my laptop) |
+| 2 | Paste the AWS keys into **GitHub Secrets** | ✅ 2026-10-19 (update them every new lab session) |
+| 3 | Run a **GitHub workflow** that launches the Terraform stack | ✅ 2026-10-19, App deployment #1. State in the private S3 bucket `cloud-dev-app-tfstate-089089` |
+| 4 | Show the successful workflow: **testing and deployment** | ✅ 2026-10-19: tests/test (17s) → deploy (1m 3s), backend answered `/health`, `/docs` and `/items/` |
+| 5 | Paste the backend's IP into the front-end (`VITE_API_URL`) | ✅ 2026-10-19, in `crud-app/frontend/.env.development.local` (`.env.local` does NOT override `.env.development`). Deleted afterwards |
+| 6 | Start the front-end (`npx vite`) | ✅ 2026-10-19: `localhost:5173` read and wrote items on AWS through CORS. `upload.py` also sent the CSV to AWS (`python upload.py http://<ip>/items/`) |
+| 7 | Code walkthrough: front-end, library, backend, testing | practise for the video (the library is CA only) |
+| 8 | Stop the stack with a **GitHub workflow** | ✅ 2026-10-19, Destroy app stack #1 (53s). The server no longer answers |
 
 Build order: a CI workflow that runs the tests (no AWS needed), then deploy and destroy workflows adapted from W13's `workflows.zip` (Terraform in `infra/`, AWS keys from GitHub Secrets, and **the state file in a private S3 bucket**, decided 2026-10-19. W13 commits the state to the repo instead, but the repo is public, so that was rejected. The repo itself must stay public, because the VM clones it without a login and the W11 slide asks for a public repo), then one full rehearsal of steps 1 to 8 in a lab session.
 | Phase 6b pull-script auto-update | **dropped** (W13's GitHub Actions replaces it) |
